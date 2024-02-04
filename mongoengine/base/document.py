@@ -145,6 +145,9 @@ class BaseDocument:
         self._initialised = True
         self._created = _created
 
+        if hasattr(self, 'id') and self.id and isinstance(self.id, ObjectId):
+            setattr(self, 'id', str(self.id))
+
         signals.post_init.send(self.__class__, document=self)
 
     def __delattr__(self, *args, **kwargs):
@@ -762,8 +765,8 @@ class BaseDocument:
             if value != default:
                 continue
 
-            del set_data[path]
-            unset_data[path] = 1
+            #del set_data[path]
+            #unset_data[path] = 1
         return set_data, unset_data
 
     @classmethod

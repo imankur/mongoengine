@@ -2,6 +2,7 @@ import re
 
 import pymongo
 from bson.dbref import DBRef
+from bson import ObjectId
 from pymongo.read_preferences import ReadPreference
 
 from mongoengine import signals
@@ -468,6 +469,9 @@ class Document(BaseDocument, metaclass=TopLevelDocumentMetaclass):
 
         self._clear_changed_fields()
         self._created = False
+
+        if hasattr(self, 'id') and self.id and isinstance(self.id, ObjectId):
+            setattr(self, 'id', str(self.id))
 
         return self
 

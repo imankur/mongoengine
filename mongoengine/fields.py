@@ -117,6 +117,7 @@ class StringField(BaseField):
         self.regex = re.compile(regex) if regex else None
         self.max_length = max_length
         self.min_length = min_length
+        kwargs.setdefault('default', lambda: '')
         super().__init__(**kwargs)
 
     def to_python(self, value):
@@ -222,16 +223,17 @@ class EmailField(StringField):
         re.IGNORECASE,
     )
 
-    UTF8_USER_REGEX = LazyRegexCompiler(
-        (
-            # RFC 6531 Section 3.3 extends `atext` (used by dot-atom) to
-            # include `UTF8-non-ascii`.
-            r"(^[-!#$%&'*+/=?^_`{}|~0-9A-Z\u0080-\U0010FFFF]+(\.[-!#$%&'*+/=?^_`{}|~0-9A-Z\u0080-\U0010FFFF]+)*\Z"
-            # `quoted-string`
-            r'|^"([\001-\010\013\014\016-\037!#-\[\]-\177]|\\[\001-\011\013\014\016-\177])*"\Z)'
-        ),
-        re.IGNORECASE | re.UNICODE,
-    )
+    # UTF8_USER_REGEX = LazyRegexCompiler(
+    #     (
+    #         # RFC 6531 Section 3.3 extends `atext` (used by dot-atom) to
+    #         # include `UTF8-non-ascii`.
+    #         r"(^[-!#$%&'*+/=?^_`{}|~0-9A-Z\u0080-\U0010FFFF]+(\.[-!#$%&'*+/=?^_`{}|~0-9A-Z\u0080-\U0010FFFF]+)*\Z"
+    #         # `quoted-string`
+    #         r'|^"([\001-\010\013\014\016-\037!#-\[\]-\177]|\\[\001-\011\013\014\016-\177])*"\Z)'
+    #     ),
+    #     re.IGNORECASE | re.UNICODE,
+    # )
+    UTF8_USER_REGEX = USER_REGEX
 
     DOMAIN_REGEX = LazyRegexCompiler(
         r"((?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+)(?:[A-Z0-9-]{2,63}(?<!-))\Z",
@@ -749,7 +751,10 @@ class EmbeddedDocumentField(BaseField):
     def to_mongo(self, value, use_db_field=True, fields=None):
         if not isinstance(value, self.document_type):
             return value
-        return self.document_type.to_mongo(value, use_db_field, fields)
+        final_value = self.document_type.to_mongo(value, use_db_field, fields)
+        if final_value and final_value.get("_id") and not final_value.get("id"):
+            final_value["id"] = final_value.pop("_id")
+        return final_value
 
     def validate(self, value, clean=True):
         """Make sure that the document instance is an instance of the
