@@ -17,7 +17,6 @@ from mongoengine.base import get_document
 from mongoengine.common import _import_class
 from mongoengine.connection import get_db
 from mongoengine.context_managers import (
-    no_dereferencing_active_for_class,
     set_read_write_concern,
     set_write_concern,
     switch_db,
@@ -52,6 +51,9 @@ class BaseQuerySet:
     providing :class:`~mongoengine.Document` objects as the results.
     """
 
+    __dereference = False
+    _auto_dereference = True
+
     def __init__(self, document, collection):
         self._document = document
         self._collection_obj = collection
@@ -72,9 +74,6 @@ class BaseQuerySet:
         self._as_pymongo = False
         self._search_text = None
         self._search_text_score = None
-
-        self.__dereference = False
-        self.__auto_dereference = True
 
         # If inheritance is allowed, only return instances and instances of
         # subclasses of the class being used
@@ -806,7 +805,7 @@ class BaseQuerySet:
         return self._clone_into(self.__class__(self._document, self._collection_obj))
 
     def _clone_into(self, new_qs):
-        """Copy all the relevant properties of this queryset to
+        """Copy all of the relevant properties of this queryset to
         a new queryset (which has to be an instance of
         :class:`~mongoengine.queryset.base.BaseQuerySet`).
         """
@@ -836,6 +835,7 @@ class BaseQuerySet:
             "_empty",
             "_hint",
             "_collation",
+            "_auto_dereference",
             "_search_text",
             "_search_text_score",
             "_max_time_ms",
@@ -846,8 +846,6 @@ class BaseQuerySet:
         for prop in copy_props:
             val = getattr(self, prop)
             setattr(new_qs, prop, copy.copy(val))
-
-        new_qs.__auto_dereference = self._BaseQuerySet__auto_dereference
 
         if self._cursor_obj:
             new_qs._cursor_obj = self._cursor_obj.clone()
@@ -1763,15 +1761,10 @@ class BaseQuerySet:
             self.__dereference = _import_class("DeReference")()
         return self.__dereference
 
-    @property
-    def _auto_dereference(self):
-        should_deref = not no_dereferencing_active_for_class(self._document)
-        return should_deref and self.__auto_dereference
-
     def no_dereference(self):
         """Turn off any dereferencing for the results of this queryset."""
         queryset = self.clone()
-        queryset.__auto_dereference = False
+        queryset._auto_dereference = False
         return queryset
 
     # Helper Functions
